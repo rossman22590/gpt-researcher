@@ -1,41 +1,45 @@
-FROM python:3.11.4-slim-bullseye as install-browser
+# Use an official Python runtime as a parent image
+FROM python:3.11.4-slim-bullseye
 
-RUN apt-get update \
-    && apt-get satisfy -y \
-    "chromium, chromium-driver (>= 115.0)" \
-    && chromium --version && chromedriver --version
+# Set environment variables
+ENV PYTHONUNBUFFERED 1
 
-RUN apt-get update \
-    && apt-get install -y --fix-missing firefox-esr wget \
-    && wget https://github.com/mozilla/geckodriver/releases/download/v0.33.0/geckodriver-v0.33.0-linux64.tar.gz \
-    && tar -xvzf geckodriver* \
-    && chmod +x geckodriver \
-    && mv geckodriver /usr/local/bin/
-
-# Install build tools
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-    build-essential \
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    chromium \
+    chromium-driver \
+    firefox-esr \
+    wget \
+    gcc \
+    libxml2-dev \
+    libxslt-dev \
     && rm -rf /var/lib/apt/lists/*
 
-FROM install-browser as gpt-researcher-install
+# Install geckodriver
+RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.33.0/geckodriver-v0.33.0-linux64.tar.gz \
+    && tar -xvzf geckodriver* \
+    && chmod +x geckodriver \
+    && mv geckodriver /usr/local/bin/ \
+    && rm geckodriver-v0.33.0-linux64.tar.gz
 
-ENV PIP_ROOT_USER_ACTION=ignore
-
-RUN mkdir /usr/src/app
+# Set up the working directory
 WORKDIR /usr/src/app
 
-COPY ./requirements.txt ./requirements.txt
-RUN pip install -r requirements.txt
+# Copy the requirements file
+COPY requirements.txt .
 
-FROM gpt-researcher-install AS gpt-researcher
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir lxml_html_clean
 
-RUN useradd -ms /bin/bash gpt-researcher \
-    && chown -R gpt-researcher:gpt-researcher /usr/src/app
+# Patch newspaper3k to use lxml_html_clean
+RUN sed -i 's/import lxml.html.clean/import lxml_html_clean as clean/' /usr/local/lib/python3.11/site-packages/newspaper/parsers.py
 
-USER gpt-researcher
+# Copy the rest of the application
+COPY . .
 
-COPY --chown=gpt-researcher:gpt-researcher ./ ./
-
+# Expose the port the app runs on
 EXPOSE 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# The command will be overridden by docker-compose
+CMD ["python", "main.py"]
