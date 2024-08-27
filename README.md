@@ -5,6 +5,7 @@
 </h1>-->
 <img src="https://github.com/assafelovic/gpt-researcher/assets/13554167/20af8286-b386-44a5-9a83-3be1365139c3" alt="Logo" width="80">
 
+
 ####
 
 [![Website](https://img.shields.io/badge/Official%20Website-gptr.dev-teal?style=for-the-badge&logo=world&logoColor=white&color=0891b2)](https://gptr.dev)
@@ -30,18 +31,18 @@
 
 The agent can produce detailed, factual and unbiased research reports, with customization options for focusing on relevant resources and outlines. Inspired by the recent [Plan-and-Solve](https://arxiv.org/abs/2305.04091) and [RAG](https://arxiv.org/abs/2005.11401) papers, GPT Researcher addresses issues of misinformation, speed, determinism and reliability, offering a more stable performance and increased speed through parallelized agent work, as opposed to synchronous operations.
 
-**Our mission is to empower individuals and organizations with accurate, unbiased, and factual information by leveraging the power of AI.**
+**Our mission is to empower individuals and organizations with accurate, unbiased, and factual information by leveraging the power of AI.** 
 
 ## Why GPT Researcher?
 
 - To form objective conclusions for manual research tasks can take time, sometimes weeks to find the right resources and information.
 - Current LLMs are trained on past and outdated information, with heavy risks of hallucinations, making them almost irrelevant for research tasks.
 - Current LLMs are limited to short token outputs which are not sufficient for long detailed research reports (2k+ words).
-- Services that enable web search (such as ChatGPT + Web Plugin), only consider limited sources and content that in some cases result in misinformation and shallow results.
+- Services that enable web search such as ChatGPT or Perplexity, only consider limited sources and content that in some cases result in misinformation and shallow results.
 - Using only a selection of web sources can create bias in determining the right conclusions for research tasks.
 
 ## Demo
-https://github.com/assafelovic/gpt-researcher/assets/13554167/dd6cf08f-b31e-40c6-9907-1915f52a7110
+https://github.com/user-attachments/assets/092e9e71-7e27-475d-8c4f-9dddd28934a3
 
 ## Architecture
 The main idea is to run "planner" and "execution" agents, whereas the planner generates questions to research, and the execution agents seek the most related information based on each generated research question. Finally, the planner filters and aggregates all related information and creates a research report. <br /> <br /> 
@@ -69,9 +70,9 @@ More specifically:
 - 📝 Generate research, outlines, resources and lessons reports with local documents and web sources
 - 📜 Can generate long and detailed research reports (over 2K words)
 - 🌐 Aggregates over 20 web sources per research to form objective and factual conclusions
-- 🖥️ Includes an easy-to-use web interface (HTML/CSS/JS)
+- 🖥️ Includes both lightweight (HTML/CSS/JS) and production ready (NextJS + Tailwind) UX/UI
 - 🔍 Scrapes web sources with javascript support
-- 📂 Keeps track and context of visited and used web sources
+- 📂 Keeps track and context and memory throughout the research process
 - 📄 Export research reports to PDF, Word and more...
 
 ## 📖 Documentation
@@ -183,10 +184,6 @@ Step 2:
  - If you're running the frontend app on localhost:8000, simply select "My Documents" from the the "Report Source" Dropdown Options.
  - If you're running GPT Researcher with the [PIP package](https://docs.tavily.com/docs/gpt-researcher/pip-package), pass the `report_source` argument as "documents" when you instantiate the `GPTResearcher` class [code sample here](https://docs.tavily.com/docs/gpt-researcher/tailored-research).
 
-### One-Click Deployment
-
-[![Deploy to RepoCloud](https://d16t0pc4846x52.cloudfront.net/deploylobe.svg)](https://repocloud.io/details/?app_id=274)
-
 ## 👪 Multi-Agent Assistant
 As AI evolves from prompt engineering and RAG to multi-agent systems, we're excited to introduce our new multi-agent assistant built with [LangGraph](https://python.langchain.com/v0.1/docs/langgraph/).
 
@@ -195,6 +192,21 @@ By using LangGraph, the research process can be significantly improved in depth 
 An average run generates a 5-6 page research report in multiple formats such as PDF, Docx and Markdown.
 
 Check it out [here](https://github.com/assafelovic/gpt-researcher/tree/master/multi_agents) or head over to our [documentation](https://docs.gptr.dev/docs/gpt-researcher/langgraph) for more information.
+
+## 🖥️ Frontend Applications
+
+GPT-Researcher now features an enhanced frontend to improve the user experience and streamline the research process. The frontend offers:
+
+- An intuitive interface for inputting research queries
+- Real-time progress tracking of research tasks
+- Interactive display of research findings
+- Customizable settings for tailored research experiences
+
+Two deployment options are available:
+1. A lightweight static frontend served by FastAPI
+2. A feature-rich NextJS application for advanced functionality
+
+For detailed setup instructions and more information about the frontend features, please visit our [documentation page](https://docs.gptr.dev/docs/gpt-researcher/frontend).
 
 ## 🚀 Contributing
 We highly welcome contributions! Please check out [contributing](https://github.com/assafelovic/gpt-researcher/blob/master/CONTRIBUTING.md) if you're interested.
@@ -209,7 +221,7 @@ Please check out our [roadmap](https://trello.com/b/3O7KBePw/gpt-researcher-road
 
 ## 🛡 Disclaimer
 
-This project, GPT Researcher, is an experimental application and is provided "as-is" without any warranty, express or implied. We are sharing codes for academic purposes under the MIT license. Nothing herein is academic advice, and NOT a recommendation to use in academic or research papers.
+This project, GPT Researcher, is an experimental application and is provided "as-is" without any warranty, express or implied. We are sharing codes for academic purposes under the Apache 2 license. Nothing herein is academic advice, and NOT a recommendation to use in academic or research papers.
 
 Our view on unbiased research claims:
 1. The main goal of GPT Researcher is to reduce incorrect and biased facts. How? We assume that the more sites we scrape the less chances of incorrect data. By scraping over 20 sites per research, and choosing the most frequent information, the chances that they are all wrong is extremely low.
