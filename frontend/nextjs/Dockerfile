@@ -6,7 +6,7 @@ COPY ./package.json ./
 RUN npm install --legacy-peer-deps
 
 # Copy ESLint config if necessary
-COPY .eslintrc.js ./
+COPY .eslintrc.json ./
 
 # Copy remaining source code
 COPY . .
