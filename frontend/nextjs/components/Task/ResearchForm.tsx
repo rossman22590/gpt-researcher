@@ -90,9 +90,9 @@ export default function ResearchForm({
           <option value="research_report">
             Summary - Short and fast (~2 min)
           </option>
-          <option value="detailed_report">
+          {/* <option value="detailed_report">
             Detailed - In depth and longer (~5 min)
-          </option>
+          </option> */}
 
         </select>
       </div>
