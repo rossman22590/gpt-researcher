@@ -1,35 +1,23 @@
-import asyncio
 import json
 import os
 import re
 import time
 import shutil
 from typing import Dict, List, Any
-from datetime import datetime
-from pathlib import Path
-
-import logging
-from fastapi import HTTPException, WebSocket
 from fastapi.responses import JSONResponse, FileResponse
-from starlette.websockets import WebSocketState
-
-# Project-specific imports (adjust paths as needed)
 from gpt_researcher.document.document import DocumentLoader
 from backend.utils import write_md_to_pdf, write_md_to_word, write_text_to_md
+from pathlib import Path
+from datetime import datetime
+from fastapi import HTTPException, WebSocket
+from starlette.websockets import WebSocketState
+import logging
+import asyncio
 
-# ------------------------------------------------------------------------------
-# Logging Configuration
-# ------------------------------------------------------------------------------
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# ------------------------------------------------------------------------------
-# Helper Functions
-# ------------------------------------------------------------------------------
 async def safe_send_json(websocket: WebSocket, data: Dict[str, Any]) -> None:
-    """
-    Safely send JSON data over WebSocket with state checking.
-    """
     try:
         if websocket.client_state == WebSocketState.CONNECTED:
             await websocket.send_json(data)
@@ -38,36 +26,13 @@ async def safe_send_json(websocket: WebSocket, data: Dict[str, Any]) -> None:
     except Exception as e:
         logger.error(f"Error sending WebSocket message: {e}")
 
-def sanitize_filename(filename: str) -> str:
-    """
-    Clean and truncate filename to prevent path issues.
-    """
-    parts = filename.split('_')
-    if len(parts) < 2:
-        return re.sub(r"[^\w\s-]", "", filename).strip()
-    
-    prefix, timestamp, *task_parts = parts
-    task = '_'.join(task_parts)
-    
-    max_task_length = 255 - 8 - 5 - 10 - 6 - 10  # ~216 chars for task
-    truncated_task = task[:max_task_length] if len(task) > max_task_length else task
-    
-    sanitized = f"{prefix}_{timestamp}_{truncated_task}"
-    return re.sub(r"[^\w\s-]", "", sanitized).strip()
-
-# ------------------------------------------------------------------------------
-# CustomLogsHandler Class
-# ------------------------------------------------------------------------------
 class CustomLogsHandler:
-    """Custom handler to capture streaming logs from the research process"""
-    def __init__(self, websocket: WebSocket, task: str):
+    def __init__(self, websocket, task: str):
         self.logs = []
         self.websocket = websocket
         sanitized_filename = sanitize_filename(f"task_{int(time.time())}_{task}")
         self.log_file = os.path.join("outputs", f"{sanitized_filename}.json")
         self.timestamp = datetime.now().isoformat()
-        
-        # Initialize log file with metadata
         os.makedirs("outputs", exist_ok=True)
         with open(self.log_file, 'w') as f:
             json.dump({
@@ -83,13 +48,12 @@ class CustomLogsHandler:
             }, f, indent=2)
 
     async def send_json(self, data: Dict[str, Any]) -> None:
-        """Store log data and send to websocket safely"""
         if self.websocket:
             await safe_send_json(self.websocket, data)
-            
+        
         with open(self.log_file, 'r') as f:
             log_data = json.load(f)
-            
+        
         if data.get('type') == 'logs':
             log_data['events'].append({
                 "timestamp": datetime.now().isoformat(),
@@ -98,20 +62,17 @@ class CustomLogsHandler:
             })
         else:
             log_data['content'].update(data)
-            
+        
         with open(self.log_file, 'w') as f:
             json.dump(log_data, f, indent=2)
         logger.debug(f"Log entry written to: {self.log_file}")
 
-# ------------------------------------------------------------------------------
-# Researcher Class
-# ------------------------------------------------------------------------------
 class Researcher:
     def __init__(self, query: str, report_type: str = "research_report"):
         self.query = query
         self.report_type = report_type
         self.research_id = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{hash(query)}"
-        self.logs_handler = CustomLogsHandler(self.research_id, query)
+        self.logs_handler = CustomLogsHandler(self.research_id)
         self.researcher = GPTResearcher(
             query=query,
             report_type=report_type,
@@ -119,131 +80,87 @@ class Researcher:
         )
 
     async def research(self) -> dict:
-        """Conduct research and return paths to generated files"""
-        try:
-            await self.researcher.conduct_research()
-            report = await self.researcher.write_report()
-            
-            sanitized_filename = sanitize_filename(f"task_{int(time.time())}_{self.query}")
-            file_paths = await generate_report_files(report, sanitized_filename)
-            json_relative_path = os.path.relpath(self.logs_handler.log_file)
-            
-            return {
-                "output": {
-                    **file_paths,
-                    "json": json_relative_path
-                }
+        await self.researcher.conduct_research()
+        report = await self.researcher.write_report()
+        
+        sanitized_filename = sanitize_filename(f"task_{int(time.time())}_{self.query}")
+        file_paths = await generate_report_files(report, sanitized_filename)
+        
+        json_relative_path = os.path.relpath(self.logs_handler.log_file)
+        
+        return {
+            "output": {
+                **file_paths,
+                "json": json_relative_path
             }
-        except Exception as e:
-            logger.error(f"Error during research: {e}")
-            raise
+        }
 
-# ------------------------------------------------------------------------------
-# File Generation Functions
-# ------------------------------------------------------------------------------
-async def generate_report_files(report: str, filename: str) -> Dict[str, str]:
-    """Generate PDF, DOCX, and MD versions of the report."""
+def sanitize_filename(filename: str) -> str:
+    prefix, timestamp, *task_parts = filename.split('_')
+    task = '_'.join(task_parts)
+    
+    max_task_length = 255 - 8 - 5 - 10 - 6 - 10
+    truncated_task = task[:max_task_length] if len(task) > max_task_length else task
+    
+    sanitized = f"{prefix}_{timestamp}_{truncated_task}"
+    return re.sub(r"[^\w\s-]", "", sanitized).strip()
+
+async def handle_start_command(websocket, data: str, manager):
+    json_data = json.loads(data[6:])
+    task, report_type, source_urls, document_urls, tone, headers, report_source = extract_command_data(json_data)
+
+    if not task or not report_type:
+        logger.error("Error: Missing task or report_type")
+        await safe_send_json(websocket, {"type": "error", "content": "Missing task or report_type"})
+        return
+
+    logs_handler = CustomLogsHandler(websocket, task)
+    await logs_handler.send_json({
+        "query": task,
+        "sources": [],
+        "context": [],
+        "report": ""
+    })
+
+    sanitized_filename = sanitize_filename(f"task_{int(time.time())}_{task}")
+
     try:
-        pdf_path = await write_md_to_pdf(report, filename)
-        docx_path = await write_md_to_word(report, filename)
-        md_path = await write_text_to_md(report, filename)
-        return {"pdf": pdf_path, "docx": docx_path, "md": md_path}
-    except Exception as e:
-        logger.error(f"Error generating report files: {e}")
-        raise
-
-# ------------------------------------------------------------------------------
-# WebSocket Communication Handlers
-# ------------------------------------------------------------------------------
-async def handle_start_command(websocket: WebSocket, data: str, manager):
-    try:
-        json_data = json.loads(data[6:])
-        task, report_type, source_urls, document_urls, tone, headers, report_source = extract_command_data(json_data)
-
-        if not task or not report_type:
-            logger.error("Error: Missing task or report_type")
-            await safe_send_json(websocket, {"type": "error", "content": "Missing task or report_type"})
-            return
-
-        logs_handler = CustomLogsHandler(websocket, task)
-        await logs_handler.send_json({
-            "query": task,
-            "sources": [],
-            "context": [],
-            "report": ""
-        })
-
-        sanitized_filename = sanitize_filename(f"task_{int(time.time())}_{task}")
-
         report = await manager.start_streaming(
-            task, report_type, report_source, source_urls, document_urls,
-            tone, websocket, headers
+            task, 
+            report_type, 
+            report_source, 
+            source_urls, 
+            document_urls,
+            tone, 
+            websocket,
+            headers
         )
         report = str(report)
-        
         file_paths = await generate_report_files(report, sanitized_filename)
         file_paths["json"] = os.path.relpath(logs_handler.log_file)
-        
         await safe_send_json(websocket, {"type": "path", "output": file_paths})
-        await safe_send_json(websocket, {
-            "type": "finished",
-            "content": "Research completed successfully"
-        })
-
+        await safe_send_json(websocket, {"type": "finished", "content": "Research completed successfully"})
     except Exception as e:
         logger.error(f"Error in handle_start_command: {e}")
         await safe_send_json(websocket, {"type": "error", "content": str(e)})
 
 async def handle_human_feedback(data: str):
-    feedback_data = json.loads(data[14:])  # Remove "human_feedback" prefix
+    feedback_data = json.loads(data[14:])
     logger.info(f"Received human feedback: {feedback_data}")
-    # TODO: Add logic to forward the feedback to the appropriate agent or update the research state
 
-async def handle_chat(websocket: WebSocket, data: str, manager):
+async def handle_chat(websocket, data: str, manager):
     json_data = json.loads(data[4:])
     logger.info(f"Received chat message: {json_data.get('message')}")
     await manager.chat(json_data.get("message"), websocket)
 
-async def handle_websocket_communication(websocket: WebSocket, manager):
-    try:
-        while True:
-            data = await asyncio.wait_for(websocket.receive_text(), timeout=600)  # 10-minute timeout
-            if data.startswith("start"):
-                await handle_start_command(websocket, data, manager)
-                break  # Exit loop after handling start command
-            elif data.startswith("human_feedback"):
-                await handle_human_feedback(data)
-            elif data.startswith("chat"):
-                await handle_chat(websocket, data, manager)
-            else:
-                logger.error("Unknown command or insufficient parameters")
-                await safe_send_json(websocket, {"type": "error", "content": "Unknown command"})
-                
-    except asyncio.TimeoutError:
-        logger.warning("WebSocket receive timeout")
-        await safe_send_json(websocket, {"type": "error", "content": "Connection timed out"})
-    except Exception as e:
-        logger.error(f"WebSocket communication error: {e}")
-        await safe_send_json(websocket, {"type": "error", "content": str(e)})
-    finally:
-        try:
-            await websocket.close()
-        except Exception as close_error:
-            logger.error(f"Error closing WebSocket: {close_error}")
+async def generate_report_files(report: str, filename: str) -> Dict[str, str]:
+    pdf_path = await write_md_to_pdf(report, filename)
+    docx_path = await write_md_to_word(report, filename)
+    md_path = await write_text_to_md(report, filename)
+    return {"pdf": pdf_path, "docx": docx_path, "md": md_path}
 
-# ------------------------------------------------------------------------------
-# Utility Functions
-# ------------------------------------------------------------------------------
-def extract_command_data(json_data: Dict) -> tuple:
-    return (
-        json_data.get("task"),
-        json_data.get("report_type"),
-        json_data.get("source_urls"),
-        json_data.get("document_urls"),
-        json_data.get("tone"),
-        json_data.get("headers", {}),
-        json_data.get("report_source")
-    )
+async def send_file_paths(websocket, file_paths: Dict[str, str]):
+    await safe_send_json(websocket, {"type": "path", "output": file_paths})
 
 def get_config_dict(
     langchain_api_key: str, openai_api_key: str, tavily_api_key: str,
@@ -300,14 +217,39 @@ async def execute_multi_agents(manager) -> Any:
     else:
         return JSONResponse(status_code=400, content={"message": "No active WebSocket connection"})
 
-# ------------------------------------------------------------------------------
-# Main execution (if needed)
-# ------------------------------------------------------------------------------
-if __name__ == "__main__":
-    # Add any main execution code here if needed
-    pass
+async def handle_websocket_communication(websocket, manager):
+    try:
+        while True:
+            data = await asyncio.wait_for(websocket.receive_text(), timeout=600)
+            if data.startswith("start"):
+                await handle_start_command(websocket, data, manager)
+                break
+            elif data.startswith("human_feedback"):
+                await handle_human_feedback(data)
+            elif data.startswith("chat"):
+                await handle_chat(websocket, data, manager)
+            else:
+                logger.error("Error: Unknown command or not enough parameters provided.")
+    except asyncio.TimeoutError:
+        logger.warning("WebSocket receive timeout")
+    except Exception as e:
+        logger.error(f"WebSocket communication error: {e}")
+    finally:
+        try:
+            await websocket.close()
+        except Exception as close_error:
+            logger.error(f"Error closing WebSocket: {close_error}")
 
-
+def extract_command_data(json_data: Dict) -> tuple:
+    return (
+        json_data.get("task"),
+        json_data.get("report_type"),
+        json_data.get("source_urls"),
+        json_data.get("document_urls"),
+        json_data.get("tone"),
+        json_data.get("headers", {}),
+        json_data.get("report_source")
+    )
 # import json
 # import os
 # import re
