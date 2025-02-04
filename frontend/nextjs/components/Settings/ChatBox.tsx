@@ -28,7 +28,6 @@ interface WebSocketMessage {
 }
 
 export default function ChatBox({ chatBoxSettings, setChatBoxSettings }: ChatBoxProps) {
-
   const [agentLogs, setAgentLogs] = useState<any[]>([]);
   const [report, setReport] = useState("");
   const [accessData, setAccessData] = useState({});
@@ -36,16 +35,14 @@ export default function ChatBox({ chatBoxSettings, setChatBoxSettings }: ChatBox
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const fullHost = getHost()
-      const host = fullHost.replace('http://', '').replace('https://', '')
-      
+      const fullHost = getHost();
+      const host = fullHost.replace('http://', '').replace('https://', '');
       const ws_uri = `${fullHost.includes('https') ? 'wss:' : 'ws:'}//${host}/ws`;
       const newSocket = new WebSocket(ws_uri);
       setSocket(newSocket);
 
       newSocket.onmessage = (event) => {
         const data = JSON.parse(event.data) as WebSocketMessage;
-        
         if (data.type === 'logs') {
           setAgentLogs((prevLogs: any[]) => [...prevLogs, data]);
         } else if (data.type === 'report') {
@@ -55,7 +52,7 @@ export default function ChatBox({ chatBoxSettings, setChatBoxSettings }: ChatBox
           setAccessData({
             ...(output.pdf && { pdf: `outputs/${output.pdf}` }),
             ...(output.docx && { docx: `outputs/${output.docx}` }),
-            ...(output.json && { json: `outputs/${output.json}` })
+            ...(output.json && { json: `outputs/${output.json}` }),
           });
         }
       };
@@ -72,12 +69,13 @@ export default function ChatBox({ chatBoxSettings, setChatBoxSettings }: ChatBox
         <ResearchForm 
           chatBoxSettings={chatBoxSettings} 
           setChatBoxSettings={setChatBoxSettings}
+          defaultReportType={chatBoxSettings.report_type}  // Added required property
         />
 
         {agentLogs?.length > 0 ? <AgentLogs agentLogs={agentLogs} /> : ''}
         <div className="margin-div">
           {report ? <Report report={report} /> : ''}
-          {Object.keys(accessData).length > 0 && 
+          {Object.keys(accessData).length > 0 &&
             <AccessReport 
               accessData={accessData} 
               chatBoxSettings={chatBoxSettings} 
