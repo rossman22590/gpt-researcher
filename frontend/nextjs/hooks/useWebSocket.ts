@@ -1,8 +1,14 @@
 import { useRef, useState } from 'react';
-import { Data, ChatBoxSettings, QuestionData } from '../types/data';
+import { Data, ChatBoxSettings } from '../types/data';
 import { getHost } from '../helpers/getHost';
 
-export const useWebSocket = (setOrderedData: React.Dispatch<React.SetStateAction<Data[]>>, setAnswer: React.Dispatch<React.SetStateAction<string>>, setLoading: React.Dispatch<React.SetStateAction<boolean>>, setShowHumanFeedback: React.Dispatch<React.SetStateAction<boolean>>, setQuestionForHuman: React.Dispatch<React.SetStateAction<boolean | true>>) => {
+export const useWebSocket = (
+  setOrderedData: React.Dispatch<React.SetStateAction<Data[]>>,
+  setAnswer: React.Dispatch<React.SetStateAction<string>>,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setShowHumanFeedback: React.Dispatch<React.SetStateAction<boolean>>,
+  setQuestionForHuman: React.Dispatch<React.SetStateAction<boolean | true>>
+) => {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const heartbeatInterval = useRef<number>();
 
@@ -10,23 +16,22 @@ export const useWebSocket = (setOrderedData: React.Dispatch<React.SetStateAction
     const storedConfig = localStorage.getItem('apiVariables');
     const apiVariables = storedConfig ? JSON.parse(storedConfig) : {};
     const headers = {
-      'retriever': apiVariables.RETRIEVER,
-      'langchain_api_key': apiVariables.LANGCHAIN_API_KEY,
-      'openai_api_key': apiVariables.OPENAI_API_KEY,
-      'tavily_api_key': apiVariables.TAVILY_API_KEY,
-      'google_api_key': apiVariables.GOOGLE_API_KEY,
-      'google_cx_key': apiVariables.GOOGLE_CX_KEY,
-      'bing_api_key': apiVariables.BING_API_KEY,
-      'searchapi_api_key': apiVariables.SEARCHAPI_API_KEY,
-      'serpapi_api_key': apiVariables.SERPAPI_API_KEY,
-      'serper_api_key': apiVariables.SERPER_API_KEY,
-      'searx_url': apiVariables.SEARX_URL
+      retriever: apiVariables.RETRIEVER,
+      langchain_api_key: apiVariables.LANGCHAIN_API_KEY,
+      openai_api_key: apiVariables.OPENAI_API_KEY,
+      tavily_api_key: apiVariables.TAVILY_API_KEY,
+      google_api_key: apiVariables.GOOGLE_API_KEY,
+      google_cx_key: apiVariables.GOOGLE_CX_KEY,
+      bing_api_key: apiVariables.BING_API_KEY,
+      searchapi_api_key: apiVariables.SEARCHAPI_API_KEY,
+      serpapi_api_key: apiVariables.SERPAPI_API_KEY,
+      serper_api_key: apiVariables.SERPER_API_KEY,
+      searx_url: apiVariables.SEARX_URL
     };
 
     if (!socket && typeof window !== 'undefined') {
-      const fullHost = getHost()
-      const host = fullHost.replace('http://', '').replace('https://', '')
-
+      const fullHost = getHost();
+      const host = fullHost.replace('http://', '').replace('https://', '');
       const ws_uri = `${fullHost.includes('https') ? 'wss:' : 'ws:'}//${host}/ws`;
 
       const newSocket = new WebSocket(ws_uri);
@@ -42,7 +47,7 @@ export const useWebSocket = (setOrderedData: React.Dispatch<React.SetStateAction
           setOrderedData((prevOrder) => [...prevOrder, { ...data, contentAndType }]);
 
           if (data.type === 'report') {
-            setAnswer((prev: any) => prev + data.output);
+            setAnswer((prev: string) => prev + data.output);
           } else if (data.type === 'path' || data.type === 'chat') {
             setLoading(false);
           }
@@ -54,8 +59,9 @@ export const useWebSocket = (setOrderedData: React.Dispatch<React.SetStateAction
         const data = "start " + JSON.stringify({ task: promptValue, report_type, report_source, tone, headers });
         newSocket.send(data);
 
+        // Use newSocket here instead of socket
         heartbeatInterval.current = window.setInterval(() => {
-          socket?.send('ping');
+          newSocket.send('ping');
         }, 3000); // Send ping every 3 seconds
       };
 
