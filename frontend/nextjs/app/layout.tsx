@@ -9,9 +9,9 @@ const inter = Lexend({ subsets: ["latin"] });
 const title = "GPT Researcher";
 const description =
   "LLM based autonomous agent that conducts local and web research on any topic and generates a comprehensive report with citations.";
-const url = "https://github.com/assafelovic/gpt-researcher";
+const url = "https://myapps.ai";
 const ogimage = "/favicon.ico";
-const sitename = "GPT Researcher";
+const sitename = "AI Tutor Researcher";
 
 export const metadata: Metadata = {
   metadataBase: new URL(url),
