@@ -15,12 +15,7 @@ export const useAnalytics = () => {
     ReactGA.event({
       category: 'Research',
       action: 'Submit Query',
-      label: data.query,
-      research_data: {
-        query: data.query,
-        report_type: data.report_type,
-        report_source: data.report_source
-      }
+      label: data.query // Optionally encode more info here if needed
     });
   };
 
