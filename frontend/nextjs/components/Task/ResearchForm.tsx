@@ -30,7 +30,7 @@ export default function ResearchForm({
   const [task, setTask] = useState(""); // You can use this to capture any specific task data if needed
 
   // Destructure necessary fields from chatBoxSettings
-  let { report_type, report_source, tone } = chatBoxSettings;
+  const { report_type, report_source, tone } = chatBoxSettings;
 
   const onFormChange = (e: { target: { name: any; value: any } }) => {
     const { name, value } = e.target;

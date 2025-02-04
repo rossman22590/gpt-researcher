@@ -6,12 +6,12 @@ import "./globals.css";
 
 const inter = Lexend({ subsets: ["latin"] });
 
-let title = "GPT Researcher";
-let description =
+const title = "GPT Researcher";
+const description =
   "LLM based autonomous agent that conducts local and web research on any topic and generates a comprehensive report with citations.";
-let url = "https://github.com/assafelovic/gpt-researcher";
-let ogimage = "/favicon.ico";
-let sitename = "GPT Researcher";
+const url = "https://github.com/assafelovic/gpt-researcher";
+const ogimage = "/favicon.ico";
+const sitename = "GPT Researcher";
 
 export const metadata: Metadata = {
   metadataBase: new URL(url),

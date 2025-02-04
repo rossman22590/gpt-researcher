@@ -13,4 +13,4 @@ export default function Report({report}:any) {
             </div>
         </div>
     );
-};
+}

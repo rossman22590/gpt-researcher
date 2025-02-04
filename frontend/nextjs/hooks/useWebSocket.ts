@@ -51,7 +51,7 @@ export const useWebSocket = (setOrderedData: React.Dispatch<React.SetStateAction
 
       newSocket.onopen = () => {
         const { report_type, report_source, tone } = chatBoxSettings;
-        let data = "start " + JSON.stringify({ task: promptValue, report_type, report_source, tone, headers });
+        const data = "start " + JSON.stringify({ task: promptValue, report_type, report_source, tone, headers });
         newSocket.send(data);
 
         heartbeatInterval.current = window.setInterval(() => {
@@ -67,7 +67,7 @@ export const useWebSocket = (setOrderedData: React.Dispatch<React.SetStateAction
       };
     } else if (socket) {
       const { report_type, report_source, tone } = chatBoxSettings;
-      let data = "start " + JSON.stringify({ task: promptValue, report_type, report_source, tone, headers });
+      const data = "start " + JSON.stringify({ task: promptValue, report_type, report_source, tone, headers });
       socket.send(data);
     }
   };

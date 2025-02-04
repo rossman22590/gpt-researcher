@@ -1,11 +1,11 @@
 import { createParser, ParsedEvent, ReconnectInterval } from "eventsource-parser";
 
 export async function handleSourcesAndAnswer(question: string) {
-  let sourcesResponse = await fetch("/api/getSources", {
+  const sourcesResponse = await fetch("/api/getSources", {
     method: "POST",
     body: JSON.stringify({ question }),
   });
-  let sources = await sourcesResponse.json();
+  const sources = await sourcesResponse.json();
 
   const response = await fetch("/api/getAnswer", {
     method: "POST",
@@ -56,11 +56,11 @@ export async function handleSourcesAndAnswer(question: string) {
 }
 
 export async function handleSimilarQuestions(question: string) {
-  let res = await fetch("/api/getSimilarQuestions", {
+  const res = await fetch("/api/getSimilarQuestions", {
     method: "POST",
     body: JSON.stringify({ question }),
   });
-  let questions = await res.json();
+  const questions = await res.json();
   return questions;
 }
 

@@ -4,7 +4,7 @@ interface GetHostParams {
 
 export const getHost = ({ purpose }: GetHostParams = {}): string => {
   if (typeof window !== 'undefined') {
-    let { host } = window.location;
+    const { host } = window.location;
     if (process.env.NEXT_PUBLIC_GPTR_API_URL) {
       return process.env.NEXT_PUBLIC_GPTR_API_URL;
     } else if (purpose === 'langgraph-gui') {
