@@ -12,16 +12,22 @@ type TInputAreaProps = {
   isStopped?: boolean;
 };
 
-// Debounce function to limit the rate at which a function can fire
-function debounce(func: Function, wait: number) {
-  let timeout: NodeJS.Timeout | undefined;
-  return function executedFunction(...args: any[]) {
-    const later = () => {
+/**
+ * A generic debounce function that returns a debounced version of the passed function.
+ * This version uses a generic type to provide proper type safety.
+ */
+function debounce<T extends (...args: any[]) => void>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  return (...args: Parameters<T>): void => {
+    if (timeout !== null) {
       clearTimeout(timeout);
+    }
+    timeout = setTimeout(() => {
       func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
+    }, wait);
   };
 }
 
@@ -34,10 +40,10 @@ const InputArea: FC<TInputAreaProps> = ({
   reset,
   isStopped,
 }) => {
-  // Always call hooks at the top of the component
+  // Always call hooks at the top of the component.
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // If input should be stopped, return early AFTER initializing hooks
+  // If input should be stopped, return early after initializing hooks.
   if (isStopped) {
     return null;
   }
@@ -68,7 +74,7 @@ const InputArea: FC<TInputAreaProps> = ({
     }
   };
 
-  // Debounced version of the height adjustment function
+  // Debounced version of the height adjustment function.
   const adjustHeight = debounce((target: HTMLTextAreaElement) => {
     target.style.height = "auto"; // Reset height to auto to allow shrinking
     target.style.height = `${target.scrollHeight}px`; // Adjust height
