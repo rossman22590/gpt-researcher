@@ -12,9 +12,9 @@ import logging
 
 from fastapi import HTTPException, WebSocket, UploadFile, File
 from fastapi.responses import JSONResponse, FileResponse
-from starlette.websockets import WebSocketState  # Import the proper enum
+from starlette.websockets import WebSocketState
 
-# Project‑specific imports (adjust as necessary)
+# Project-specific imports (adjust as necessary)
 from gpt_researcher.document.document import DocumentLoader
 from backend.utils import write_md_to_pdf, write_md_to_word, write_text_to_md
 
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 async def safe_send_json(websocket: WebSocket, data: dict) -> None:
     """
-    Safely send JSON data over the WebSocket if the connection is still open.
+    Safely sends JSON data over the WebSocket if the connection is still open.
     Logs errors if the send fails.
     """
     try:
@@ -52,13 +52,13 @@ def sanitize_filename(filename: str) -> str:
         return re.sub(r"[^\w\s-]", "", filename).strip()
     prefix, timestamp, *task_parts = parts
     task = '_'.join(task_parts)
-    max_task_length = 216  # ~216 chars for task portion
+    max_task_length = 216  # ~216 characters for task portion
     truncated_task = task if len(task) <= max_task_length else task[:max_task_length]
     sanitized = f"{prefix}_{timestamp}_{truncated_task}"
     return re.sub(r"[^\w\s-]", "", sanitized).strip()
 
 # ------------------------------------------------------------------------------
-# CustomLogsHandler: Captures logs and writes them to a file, then sends them.
+# CustomLogsHandler: Capture logs and send them over the WebSocket
 # ------------------------------------------------------------------------------
 class CustomLogsHandler:
     """Custom handler to capture streaming logs from the research process."""
@@ -111,16 +111,16 @@ class Researcher:
         self.query = query
         self.report_type = report_type
         self.research_id = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{hash(query)}"
-        # Pass a dummy websocket (replace with active WebSocket in your use case)
+        # Here, pass a valid WebSocket instance if available.
         self.logs_handler = CustomLogsHandler(self.research_id, query)
-        self.researcher = GPTResearcher(
+        self.researcher = GPTResearcher(  # Replace with your actual research agent.
             query=query,
             report_type=report_type,
             websocket=self.logs_handler
         )
 
     async def research(self) -> dict:
-        """Conducts research and returns output file paths."""
+        """Conducts research and returns file paths to generated files."""
         await self.researcher.conduct_research()
         report = await self.researcher.write_report()
         
@@ -130,13 +130,13 @@ class Researcher:
         
         return {
             "output": {
-                **file_paths,  # Includes PDF, DOCX, MD paths
+                **file_paths,  # Includes PDF, DOCX, and MD paths
                 "json": json_relative_path
             }
         }
 
 # ------------------------------------------------------------------------------
-# Report file generation: Convert report to PDF, DOCX, and MD.
+# Generate report files: Convert report to PDF, DOCX, and MD.
 # ------------------------------------------------------------------------------
 async def generate_report_files(report: str, filename: str) -> Dict[str, str]:
     pdf_path = await write_md_to_pdf(report, filename)
@@ -148,14 +148,15 @@ async def generate_report_files(report: str, filename: str) -> Dict[str, str]:
 # WebSocket command handlers
 # ------------------------------------------------------------------------------
 async def send_file_paths(websocket: WebSocket, file_paths: Dict[str, str]):
-    await websocket.send_json({"type": "path", "output": file_paths})
+    # Use safe_send_json here so errors during send are caught.
+    await safe_send_json(websocket, {"type": "path", "output": file_paths})
 
 async def stream_output(message_type: str, label: str, content: str, websocket: WebSocket):
     data = {"type": message_type, "label": label, "content": content}
     await safe_send_json(websocket, data)
 
 async def handle_start_command(websocket: WebSocket, data: str, manager):
-    # Remove "start " prefix and parse JSON.
+    # Remove the "start " prefix and parse JSON.
     json_data = json.loads(data[6:])
     task, report_type, source_urls, document_urls, tone, headers, report_source = extract_command_data(json_data)
 
@@ -163,7 +164,7 @@ async def handle_start_command(websocket: WebSocket, data: str, manager):
         logger.error("Error: Missing task or report_type")
         return
 
-    # Create a new logs handler with the active websocket.
+    # Create a new logs handler using the active WebSocket.
     logs_handler = CustomLogsHandler(websocket, task)
     await logs_handler.send_json({
         "query": task,
@@ -181,16 +182,24 @@ async def handle_start_command(websocket: WebSocket, data: str, manager):
     report = str(report)
     file_paths = await generate_report_files(report, sanitized_filename)
     file_paths["json"] = os.path.relpath(logs_handler.log_file)
-    await send_file_paths(websocket, file_paths)
     
-    # Send final termination message and close socket.
+    # Send the file paths – wrapped in safe_send_json.
+    await safe_send_json(websocket, {"type": "path", "output": file_paths})
+    
+    # Send final termination message.
     await safe_send_json(websocket, {"type": "finished", "content": "Research has ended. LOL"})
-    await websocket.close()
+    
+    # Attempt to close the socket only if it remains open.
+    try:
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.close()
+    except Exception as close_error:
+        logger.error(f"Error during WebSocket close: {close_error}")
 
 async def handle_human_feedback(data: str):
     feedback_data = json.loads(data[14:])  # Remove "human_feedback" prefix.
     logger.info(f"Received human feedback: {feedback_data}")
-    # TODO: Forward human feedback to appropriate agent.
+    # TODO: Forward human feedback to appropriate agent or update research state.
 
 async def handle_chat(websocket: WebSocket, data: str, manager):
     json_data = json.loads(data[4:])
@@ -267,7 +276,7 @@ async def execute_multi_agents(manager) -> Any:
         return JSONResponse(status_code=400, content={"message": "No active WebSocket connection"})
 
 # ------------------------------------------------------------------------------
-# WebSocket communication loop with timeout and termination.
+# WebSocket communication loop with timeout and termination signal.
 # ------------------------------------------------------------------------------
 async def handle_websocket_communication(websocket: WebSocket, manager):
     try:
@@ -276,7 +285,7 @@ async def handle_websocket_communication(websocket: WebSocket, manager):
             const_data = await asyncio.wait_for(websocket.receive_text(), timeout=120)
             if const_data.startswith("start"):
                 await handle_start_command(websocket, const_data, manager)
-                # break after handling "start" as termination occurs in handle_start_command.
+                # Exit loop after handling "start" (termination occurs inside handle_start_command).
                 break
             elif const_data.startswith("human_feedback"):
                 await handle_human_feedback(const_data)
@@ -286,11 +295,20 @@ async def handle_websocket_communication(websocket: WebSocket, manager):
                 logger.error("Error: Unknown command or insufficient parameters provided.")
     except asyncio.TimeoutError:
         logger.warning("WebSocket receive timed out; closing connection.")
-        await websocket.close()
+        try:
+            await websocket.close()
+        except Exception as close_error:
+            logger.error(f"Error during WebSocket close: {close_error}")
     except Exception as e:
         logger.error(f"WebSocket communication error: {e}")
-        await websocket.close()
+        try:
+            await websocket.close()
+        except Exception as close_error:
+            logger.error(f"Error during WebSocket close: {close_error}")
 
+# ------------------------------------------------------------------------------
+# End of module
+# ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
 # End of module
 # ------------------------------------------------------------------------------
