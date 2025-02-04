@@ -86,7 +86,7 @@ export default function ResearchForm({
           required
         >
 
-          <option value="multi_agents">Multi Agents Report</option>
+          {/* <option value="multi_agents">Multi Agents Report</option> */}
           <option value="research_report">
             Summary - Short and fast (~2 min)
           </option>
