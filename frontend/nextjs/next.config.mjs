@@ -6,6 +6,9 @@ const nextConfig = {
         hostname: 'www.google.com',
       },
       {
+        hostname: 'img.mytsi.org',
+      },
+      {
         hostname: 'www.google-analytics.com',
       }
     ],

@@ -34,7 +34,7 @@ const Hero: FC<THeroProps> = ({
             </span>
           </h1>
           <h2 className="text-xl font-light text-center px-4 mb-10 text-gray-300">
-            Say Hello to GPT Researcher, your AI mate for rapid insights and comprehensive research
+            Say Hello to AI Tutor Researcher, your AI mate for rapid insights and comprehensive research
           </h2>
         </div>
 
