@@ -143,7 +143,7 @@ export default function MobileHomeScreen({
             className="rounded-xl"
           />
         </div>
-        <p className="text-gray-400 text-sm">Say Hello to GPT Researcher, your AI partner for instant insights and comprehensive research</p>
+        <p className="text-gray-400 text-sm">Say Hello to AI Researcher, your AI partner for instant insights and comprehensive research</p>
       </div>
 
       {/* Search Box */}
