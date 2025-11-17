@@ -1076,15 +1076,26 @@ const GPTResearcher = (() => {
     const { pdf, docx, md, json } = data.output;
     console.log('Received paths:', { pdf, docx, md, json });
 
-    // Store these links for history
-    const currentLinks = { pdf, docx, md, json };
+    // Ensure paths are absolute under the /outputs mount
+    const normalizePath = (p) => {
+      if (!p || typeof p !== 'string') return '';
+      return p.startsWith('/') ? p : `/${p}`;
+    };
+    const nPdf = normalizePath(pdf);
+    const nDocx = normalizePath(docx);
+    const nMd = normalizePath(md);
+    const nJson = normalizePath(json);
+
+    // Store normalized links for history
+    const currentLinks = { pdf: nPdf, docx: nDocx, md: nMd, json: nJson };
 
     // Helper function to safely update link
     const updateLink = (id, path) => {
       const element = document.getElementById(id);
       if (element && path) {
-        console.log(`Setting ${id} href to:`, path);
-        element.setAttribute('href', path);
+        const href = path.startsWith('/') ? path : `/${path}`;
+        console.log(`Setting ${id} href to:`, href);
+        element.setAttribute('href', href);
         element.classList.remove('disabled');
       } else {
         console.warn(`Either element ${id} not found or path not provided`);
@@ -1092,16 +1103,16 @@ const GPTResearcher = (() => {
     };
 
     // Update links in sticky download bar
-    updateLink('downloadLink', pdf);
-    updateLink('downloadLinkWord', docx);
-    updateLink('downloadLinkMd', md);
-    updateLink('downloadLinkJson', json);
+    updateLink('downloadLink', nPdf);
+    updateLink('downloadLinkWord', nDocx);
+    updateLink('downloadLinkMd', nMd);
+    updateLink('downloadLinkJson', nJson);
 
     // Update duplicate buttons above the report
-    updateLink('downloadLinkTop', pdf);
-    updateLink('downloadLinkWordTop', docx);
-    updateLink('downloadLinkMdTop', md);
-    updateLink('downloadLinkJsonTop', json);
+    updateLink('downloadLinkTop', nPdf);
+    updateLink('downloadLinkWordTop', nDocx);
+    updateLink('downloadLinkMdTop', nMd);
+    updateLink('downloadLinkJsonTop', nJson);
 
     // Make sure download buttons are visible when download links are ready
     showDownloadPanels();
@@ -1369,10 +1380,16 @@ const GPTResearcher = (() => {
       stickyDownloadsBar.classList.add('visible');
     }
 
-    // Enable all download buttons
+    // Enable only buttons that have valid hrefs
     const downloadButtons = document.querySelectorAll('.download-option-btn, .report-action-btn');
     downloadButtons.forEach(button => {
-      button.classList.remove('disabled');
+      const href = button.getAttribute('href');
+      const valid = href && href !== '#' && href.trim() !== '';
+      if (valid) {
+        button.classList.remove('disabled');
+      } else {
+        button.classList.add('disabled');
+      }
     });
 
     // Make top buttons report-actions section visible
@@ -1877,8 +1894,10 @@ const GPTResearcher = (() => {
     // Add loading indicator
     const loadingId = addLoadingIndicator();
 
-    // Prepare the message to send
-    const messageToSend = `chat ${JSON.stringify({ message: message })}`;
+    // Prepare the message to send (include current report as context)
+    const reportEl = document.getElementById('reportContainer');
+    const reportText = reportEl ? reportEl.innerText : '';
+    const messageToSend = `chat ${JSON.stringify({ message: message, report: reportText })}`;
 
     // Send message through WebSocket
     if (socket && socket.readyState === WebSocket.OPEN) {
