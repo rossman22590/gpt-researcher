@@ -2,9 +2,8 @@ import os
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from langchain.callbacks.manager import CallbackManagerForRetrieverRun
-from langchain.schema import Document
-from langchain.schema.retriever import BaseRetriever
+from langchain_core.documents import Document
+from langchain_core.retrievers import BaseRetriever
 
 
 class SearchAPIRetriever(BaseRetriever):
@@ -12,7 +11,7 @@ class SearchAPIRetriever(BaseRetriever):
     pages: List[Dict] = []
 
     def _get_relevant_documents(
-        self, query: str, *, run_manager: CallbackManagerForRetrieverRun
+        self, query: str, *, run_manager: Any
     ) -> List[Document]:
 
         docs = [
@@ -46,7 +45,7 @@ class SectionRetriever(BaseRetriever):
     """
     
     def _get_relevant_documents(
-        self, query: str, *, run_manager: CallbackManagerForRetrieverRun
+        self, query: str, *, run_manager: Any
     ) -> List[Document]:
 
         docs = [
