@@ -1380,9 +1380,13 @@ const GPTResearcher = (() => {
       stickyDownloadsBar.classList.add('visible');
     }
 
-    // Enable only buttons that have valid hrefs
+    // Enable only buttons that have valid hrefs, except copy button which has no href
     const downloadButtons = document.querySelectorAll('.download-option-btn, .report-action-btn');
     downloadButtons.forEach(button => {
+      if (button.id === 'copyToClipboard') {
+        button.classList.remove('disabled');
+        return;
+      }
       const href = button.getAttribute('href');
       const valid = href && href !== '#' && href.trim() !== '';
       if (valid) {
