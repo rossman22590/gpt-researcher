@@ -17,6 +17,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+try:
+    # Chat support (HTTP already in app.py). Import here to enable WS 'chat' command without affecting other flows.
+    from chat.chat import ChatAgentWithMemory  # noqa: F401
+except Exception:
+    ChatAgentWithMemory = None  # Graceful fallback if chat module not available
+
 class CustomLogsHandler:
     """Custom handler to capture streaming logs from the research process"""
     def __init__(self, websocket, task: str):
@@ -174,6 +180,74 @@ async def handle_human_feedback(data: str):
     print(f"Received human feedback: {feedback_data}")
     # TODO: Add logic to forward the feedback to the appropriate agent or update the research state
 
+
+async def handle_chat_command(websocket, data: str):
+    """Handle chat messages over WebSocket.
+
+    Accepts payloads like:
+      - "chat {\"message\": \"hi\"}"
+      - "chat {\"messages\":[{"role":"user","content":"hi"}], "report": "..."}"
+    """
+    if ChatAgentWithMemory is None:
+        await websocket.send_json({
+            "type": "error",
+            "content": "error",
+            "output": "Chat module not available on server"
+        })
+        return
+
+    # Extract JSON substring robustly (after the first '{')
+    try:
+        brace_idx = data.find('{')
+        payload_str = data[brace_idx:] if brace_idx != -1 else "{}"
+        payload = json.loads(payload_str)
+    except Exception as e:
+        logger.error(f"Failed to parse chat payload: {e}")
+        await websocket.send_json({
+            "type": "error",
+            "content": "error",
+            "output": "Invalid chat payload JSON"
+        })
+        return
+
+    # Build messages list
+    messages = []
+    if isinstance(payload.get("messages"), list) and payload.get("messages"):
+        messages = [
+            {"role": m.get("role", "user"), "content": m.get("content", "")}
+            for m in payload["messages"]
+            if isinstance(m, dict)
+        ]
+    elif isinstance(payload.get("message"), str):
+        messages = [{"role": "user", "content": payload["message"]}]
+    else:
+        await websocket.send_json({
+            "type": "error",
+            "content": "error",
+            "output": "Chat payload must include 'message' or 'messages'"
+        })
+        return
+
+    report = payload.get("report", "")
+
+    try:
+        chat_agent = ChatAgentWithMemory(report=report, config_path="default", headers=None)
+        response_content, tool_calls_metadata = await chat_agent.chat(messages, None)
+
+        await websocket.send_json({
+            "type": "chat",
+            "content": "assistant",
+            "output": response_content,
+            "metadata": {"tool_calls": tool_calls_metadata} if tool_calls_metadata else None
+        })
+    except Exception as e:
+        logger.error(f"Error processing chat command: {e}\n{traceback.format_exc()}")
+        await websocket.send_json({
+            "type": "error",
+            "content": "error",
+            "output": f"Chat processing failed: {e}"
+        })
+
 async def generate_report_files(report: str, filename: str) -> Dict[str, str]:
     pdf_path = await write_md_to_pdf(report, filename)
     docx_path = await write_md_to_word(report, filename)
@@ -296,6 +370,9 @@ async def handle_websocket_communication(websocket, manager):
                 elif data.strip().startswith("human_feedback"):
                     logger.info(f"Processing human_feedback command")
                     running_task = run_long_running_task(handle_human_feedback(data))
+                elif data.strip().startswith("chat"):
+                    logger.info(f"Processing chat command")
+                    running_task = run_long_running_task(handle_chat_command(websocket, data))
                 else:
                     error_msg = f"Error: Unknown command or not enough parameters provided. Received: '{data[:100]}...'" if len(data) > 100 else f"Error: Unknown command or not enough parameters provided. Received: '{data}'"
                     logger.error(error_msg)
