@@ -9,9 +9,9 @@ pydantic
 fastapi
 python-multipart
 markdown
-langchain
-langchain_community
-langchain-openai
+langchain==0.0.353
+langchain_community==0.0.21
+langchain-openai==0.0.8
 langchain-ollama
 langgraph
 tiktoken
